@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>醫學單字測驗</title>
+    <style>
+        :root { --primary: #228be6; --star: #fab005; --bg: #f8f9fa; }
+        body { font-family: sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; color: #333; }
+        
+        #setupPage, #resultPage { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        .grid-chars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 20px 0; text-align: left; }
+        .mode-select { margin: 20px 0; padding: 15px; background: #f1f3f5; border-radius: 10px; }
+        
+        #quizPage { display: none; width: 100%; max-width: 400px; text-align: center; }
+        .card { background: white; min-height: 250px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; cursor: pointer; position: relative; margin-bottom: 20px; }
+        .word-main { font-size: 2rem; font-weight: bold; margin-bottom: 10px; }
+        .word-sub { font-size: 1.1rem; color: #868e96; margin-bottom: 20px; min-height: 1.2em; }
+        .ans-area { font-size: 1.6rem; color: #e8590c; font-weight: bold; visibility: hidden; background: #fff4e6; padding: 5px 15px; border-radius: 8px; }
+        .ans-area.show { visibility: visible; }
+        
+        .star-btn { position: absolute; top: 20px; left: 20px; font-size: 28px; color: #dee2e6; background: none; border: none; cursor: pointer; transition: 0.2s; }
+        .star-btn.active { color: var(--star); }
+        .btn-speak { position: absolute; top: 20px; right: 20px; background: #f8f9fa; border: 1px solid #eee; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; }
+
+        .btn { border: none; padding: 12px 30px; border-radius: 10px; font-size: 1rem; cursor: pointer; font-weight: bold; transition: 0.2s; width: 100%; margin-bottom: 10px; }
+        .btn-start { background: var(--primary); color: white; margin-top: 10px; }
+        .btn-next { background: var(--primary); color: white; }
+        .btn-end { background: #ff6b6b; color: white; margin-top: 20px; }
+        .btn-outline { background: #e9ecef; color: #495057; }
+
+        .star-list { text-align: left; margin-top: 20px; max-height: 300px; overflow-y: auto; padding-right: 10px; }
+        .star-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="setupPage">
+        <h2 style="margin-top:0">🚑 測驗設定</h2>
+        <div style="text-align:left; font-weight:bold;">選擇字首範圍：</div>
+        <div class="grid-chars" id="charGrid"></div>
+        <div style="text-align:right; margin-bottom:10px;">
+            <small onclick="selectAll(true)" style="cursor:pointer; color:var(--primary)">全選</small> / 
+            <small onclick="selectAll(false)" style="cursor:pointer; color:var(--primary)">清空</small>
+        </div>
+
+        <div class="mode-select">
+            <div style="text-align:left; font-weight:bold; margin-bottom:10px;">測驗模式：</div>
+            <label><input type="radio" name="quizMode" value="order" checked> 依講義順序</label>
+            <label style="margin-left:20px;"><input type="radio" name="quizMode" value="random"> 隨機抽題</label>
+        </div>
+
+        <button class="btn btn-start" onclick="startQuiz()">開始測驗</button>
+    </div>
+
+    <div id="quizPage">
+        <div class="card" onclick="toggleAns()">
+            <button id="starIcon" class="star-btn" onclick="toggleStar(event)">★</button>
+            <button class="btn-speak" onclick="speakCurrent(event)">🔊</button>
+            <div class="word-main" id="displayWord">-</div>
+            <div class="word-sub" id="displaySub">-</div>
+            <div class="ans-area" id="displayAns">-</div>
+        </div>
+        <button class="btn btn-next" onclick="nextQuestion()">下一題</button>
+        <button class="btn btn-outline" onclick="toggleAns()">顯示答案</button>
+        <button class="btn btn-end" onclick="showResults()">結束並查看重點</button>
+        <div id="quizStatus" style="margin-top:15px; color:#adb5bd; font-size:14px;"></div>
+    </div>
+
+    <div id="resultPage" class="hidden">
+        <h2 style="margin-top:0">🌟 重點複習清單</h2>
+        <p id="starCountDisplay"></p>
+        <div class="star-list" id="starList"></div>
+        <button class="btn btn-start" style="margin-top:20px;" onclick="location.reload()">回到設定頁</button>
+    </div>
+
+<script>
+// 這裡將變數統稱為 data[cite: 1]
+const data = [
+    { a: "a/W", n: "abrasion wound", c: "擦傷" },
+    { a: "", n: "acidosis", c: "酸中毒" },
+    { a: "AIDS", n: "acquired immune-deficiency syndrome", c: "後天免疫不全症候群" },
+    { a: "", n: "acute", c: "急性" },
+    { a: "ACS", n: "acute coronary syndrome", c: "急性冠狀動脈症候群" },
+    { a: "AMI", n: "acute myocardial infarction", c: "急性心肌梗塞" },
+    { a: "ALS", n: "Advanced Life Support", c: "進階救命術" },
+    { a: "", n: "agonal respiration", c: "瀕死呼吸" },
+    { a: "", n: "Airway", c: "呼吸道" },
+    { a: "", n: "air hunger", c: "空氣飢渴 (張口呼吸、呼吸衰竭徵象)" },
+    { a: "", n: "albuterol", c: "吸入性擴張劑" },
+    { a: "AED", n: "Automated External Defibrillator", c: "自動體外心臟電擊去顫器" },
+    { a: "AD", n: "aortic dissection", c: "主動脈剝離" },
+    { a: "", n: "asthma", c: "氣喘" },
+    { a: "", n: "asystole", c: "心律停止" },
+    { a: "", n: "attack", c: "發作" },
+    { a: "A/W", n: "avulsion wound", c: "剝離傷" },
+    { a: "", n: "ambu bagging", c: "甦醒球擠壓法" },
+    { a: "", n: "ambulance", c: "救護車" },
+    { a: "BLS", n: "Basic Life Support", c: "基本救命術" },
+    { a: "BVM", n: "bag valve mask", c: "袋瓣罩甦醒球" },
+    { a: "", n: "bagging", c: "強迫給氧" },
+    { a: "", n: "Breathing", c: "呼吸" },
+    { a: "", n: "Bleeding", c: "出血" },
+    { a: "BP", n: "blood pressure", c: "血壓" },
+    { a: "BT", n: "Body temperature", c: "體溫" },
+    { a: "", n: "C-spine", c: "頸椎" },
+    { a: "CA", n: "Cancer", c: "癌症" },
+    { a: "", n: "Cardiac Arrest", c: "心臟停止" },
+    { a: "CAD", n: "Coronary Artery Disease", c: "冠狀動脈疾病" },
+    { a: "CHD", n: "Congenital Heart Disease", c: "先天性心臟病" },
+    { a: "CHF", n: "Congestive Heart Failure", c: "充血性心衰竭" },
+    { a: "CPR", n: "cardiopulmonary resuscitation", c: "心肺復甦術" },
+    { a: "CRT", n: "Capillary refill time", c: "微血管回充時間" },
+    { a: "CVA", n: "cerebral vascular accident", c: "腦中風、腦血管意外" },
+    { a: "CVC", n: "central venous catheter", c: "中央靜脈導管" },
+    { a: "CVP", n: "central venous pressure", c: "中心靜脈壓力" },
+    { a: "", n: "Cellulitis", c: "蜂窩性組織炎" },
+    { a: "COPD", n: "chronic obstructive pulmonary disease", c: "慢性阻塞性肺疾病" },
+    { a: "", n: "Chest tightness", c: "胸悶" },
+    { a: "", n: "chest tube", c: "胸管" },
+    { a: "", n: "chest pain", c: "胸痛" },
+    { a: "", n: "choking", c: "異物梗塞" },
+    { a: "", n: "Circulation", c: "循環" },
+    { a: "", n: "cold sweating (diaphoresis)", c: "冒冷汗" },
+    { a: "", n: "collar", c: "頸圈" },
+    { a: "", n: "coma", c: "昏迷" },
+    { a: "CT", n: "Computed Tomography", c: "電腦斷層" },
+    { a: "", n: "conscious", c: "意識" },
+    { a: "", n: "conscious change", c: "意識改變" },
+    { a: "", n: "crackles(Rales)", c: "爆裂音(囉音)(呼吸音)" },
+    { a: "", n: "cyanosis", c: "發紺" },
+    { a: "CPSS", n: "The Cincinnati Pre-hospital Stroke Scale", c: "辛辛那提到院前腦中風指數" },
+    { a: "D5W", n: "5% Dextrose in water", c: "5%葡萄糖注射液(水)" },
+    { a: "D5S", n: "5% Dextrose in Saline", c: "5%葡萄糖注射液(食鹽水)" },
+    { a: "DM", n: "Diabetes Mellitus", c: "糖尿病" },
+    { a: "DNR", n: "Do Not Resuscitation", c: "放棄心肺復甦術" },
+    { a: "DKA", n: "Diabetic keto-acidosis", c: "糖尿病酮酸中毒" },
+    { a: "", n: "Disability", c: "失能" },
+    { a: "EMS", n: "Emergency Medical System (Service)", c: "緊急醫療救護系統(服務)" },
+    { a: "EMT", n: "Emergency medical technician", c: "緊急醫療救護技術員" },
+    { a: "ED、ER", n: "Emergency department、Emergency room", c: "急診室" },
+    { a: "EDH", n: "epidural hemorrhage", c: "硬腦膜上出血" },
+    { a: "", n: "Exposure", c: "曝露" },
+    { a: "", n: "Endo", c: "氣管內管" },
+    { a: "ECG、EKG", n: "Electrocardiography", c: "心電圖" },
+    { a: "Exp", n: "Expired", c: "死亡" },
+    { a: "", n: "fever", c: "發燒" },
+    { a: "", n: "foley", c: "尿管" },
+    { a: "fx.", n: "fracture", c: "骨折" },
+    { a: "GCS", n: "Glasgow Coma Scale", c: "昏迷指數" },
+    { a: "", n: "Glucose", c: "葡萄糖" },
+    { a: "G/W", n: "Glucose water", c: "葡萄糖水" },
+    { a: "HR", n: "Heart rate", c: "心率" },
+    { a: "HX", n: "history", c: "病史" },
+    { a: "H/T", n: "Hypertension", c: "高血壓" },
+    { a: "HIV", n: "Human immunodeficiency virus", c: "人類免疫缺乏病毒" },
+    { a: "Hyper", n: "Hyperventilation Syndrome", c: "過度換氣症候群" },
+    { a: "ICH", n: "Intracranial Hemorrhage", c: "顱內出血" },
+    { a: "ICU", n: "Intensive Care Unit", c: "加護病房" },
+    { a: "IV", n: "Intravenous", c: "靜脈注射" },
+    { a: "IVD", n: "Intravenous Drip", c: "靜脈滴注" },
+    { a: "IVP", n: "Intravenous Push", c: "靜脈推入" },
+    { a: "IV PUMP", n: "Intravenous PUMP", c: "點滴幫浦" },
+    { a: "IM", n: "Intramuscular injection", c: "肌肉注射" },
+    { a: "IICP", n: "Increased intracranial pressure", c: "顱內壓升高" },
+    { a: "I/W", n: "Incised Wound", c: "切割傷" },
+    { a: "IHCA", n: "In-Hospital Cardiac Arrest", c: "院內心肺功能停止" },
+    { a: "IO", n: "Intraosseous Injection", c: "骨內血管注射" },
+    { a: "I.V Bag", n: "Intravenous Bag", c: "精密輸送套" },
+    { a: "I.V LOCK", n: "Intravenous lock", c: "注射帽" },
+    { a: "I.V Set", n: "Intravenous Set", c: "一般輸送套" },
+    { a: "I-gel", n: "", c: "喉頭外呼吸道" },
+    { a: "KED", n: "Kendrick Extrication Device", c: "軀幹固定器" },
+    { a: "L/W", n: "Laceration wound", c: "撕裂傷" },
+    { a: "LMA", n: "laryngeal mask airway", c: "拋棄式喉頭面罩" },
+    { a: "MRI", n: "Magnetic Resonance Imaging", c: "核磁共振(磁振造影)" },
+    { a: "", n: "medical", c: "醫療" },
+    { a: "MI", n: "Myocardial infarction", c: "心肌梗塞" },
+    { a: "", n: "major trauma", c: "嚴重創傷" },
+    { a: "NSR", n: "Normal Sinus Rhythm", c: "正常竇性節律" },
+    { a: "N/S", n: "Normal Saline", c: "生理食鹽水" },
+    { a: "NSTEMI", n: "Non ST-Elevation Myocardial Infarction", c: "非 ST 段上升心肌梗塞" },
+    { a: "NICU", n: "Neonatal Intensive Care Unit", c: "新生兒加護病房" },
+    { a: "NB", n: "Newborn", c: "新生兒" },
+    { a: "NG", n: "Nasogastric intubation", c: "鼻胃管" },
+    { a: "N/C", n: "nasal cannula", c: "氧氣鼻導管" },
+    { a: "NPA", n: "Nasopharyngeal Airway", c: "鼻咽呼吸道" },
+    { a: "NRM", n: "non rebreathing mask", c: "非再吸入性面罩" },
+    { a: "NTG", n: "Nitroglycerin", c: "硝酸甘油(耐絞寧舌下錠)" },
+    { a: "OHCA", n: "Out-of-Hospital Cardiac Arrest", c: "到院前心肺功能停止" },
+    { a: "", n: "One touch", c: "血糖測試" },
+    { a: "OPA", n: "Oral Airway", c: "口咽呼吸道" },
+    { a: "OD", n: "Overdose", c: "劑量過量" },
+    { a: "", n: "Oximeter", c: "血氧機" },
+    { a: "O2", n: "Oxygen", c: "氧氣" },
+    { a: "", n: "pulse", c: "脈搏" },
+    { a: "", n: "Pulmonary Embolism", c: "肺栓塞" },
+    { a: "", n: "Pulmonary edema", c: "肺水腫" },
+    { a: "", n: "Pneumonia", c: "肺炎" },
+    { a: "", n: "Pneumothorax", c: "氣胸" },
+    { a: "PSVT", n: "Paroxysmal Supraventricular Tachycardia", c: "陣發性上心室心搏過速" },
+    { a: "", n: "pupil", c: "瞳孔" },
+    { a: "PICU", n: "paediatric intensive care unit", c: "小兒加護病房" },
+    { a: "Psy", n: "Psychiatric Patient", c: "行為急症" },
+    { a: "PTSD", n: "Post Traumatic Stress Disorder", c: "創傷後壓力症候群" },
+    { a: "PEA", n: "pulseless electrical activity", c: "無收縮心臟電氣活動" },
+    { a: "RR", n: "Respiratory Rate", c: "呼吸速率" },
+    { a: "ROSC", n: "return of spontaneous circulation", c: "恢復自發性循環" },
+    { a: "O2 Mask", n: "Simple mask", c: "簡單型面罩" },
+    { a: "", n: "suction", c: "抽吸" },
+    { a: "", n: "suction tube", c: "抽痰管" },
+    { a: "", n: "stridor", c: "喘鳴音" },
+    { a: "", n: "Spo2", c: "血氧" },
+    { a: "", n: "shock", c: "休克" },
+    { a: "", n: "spine", c: "脊柱" },
+    { a: "", n: "spinal injury", c: "脊髓損傷" },
+    { a: "SDH", n: "subdural hematoma", c: "硬腦膜下出血" },
+    { a: "", n: "sugar", c: "血糖" },
+    { a: "", n: "Seizure", c: "抽搐" },
+    { a: "SAH", n: "Subarachnoid Hemorrhage", c: "蜘蛛膜下出血" },
+    { a: "SOB", n: "Short of Breath", c: "呼吸短促" },
+    { a: "TB", n: "Tuberculosis", c: "結核病(肺結核)" },
+    { a: "", n: "trauma", c: "創傷" },
+    { a: "TBSA", n: "total body surface area", c: "燒燙傷總表面積" },
+    { a: "", n: "triage", c: "檢傷" },
+    { a: "Tr.", n: "Tracheostomy", c: "氣切(氣管切開術)" },
+    { a: "TCP", n: "trancutaneous pacing", c: "體外心臟節律器" },
+    { a: "UGI bleeding", n: "Upper gastrointestinal bleeding", c: "上腸胃道出血" },
+    { a: "URI", n: "Upper Respiratory Tract Infection", c: "上呼吸道感染" },
+    { a: "UTI", n: "Urinary tract infection", c: "泌尿道感染" },
+    { a: "Vf", n: "Ventricular Fibrillation", c: "心室纖維顫動" },
+    { a: "VT", n: "Ventricular Tachycardia", c: "心室性心搏過速" },
+    { a: "", n: "vein", c: "靜脈" },
+    { a: "V/S", n: "vital signs", c: "生命徵象" },
+    { a: "", n: "wheezing", c: "嘯鳴音" },
+    { a: "", n: "wound", c: "傷口" },
+    { a: "", n: "X-Ray", c: "X光攝影" },
+    { a: "y/o", n: "Years old", c: "年歲" }
+];
+
+let quizPool = [];
+let currentIndex = 0;
+let starredIndices = new Set();
+
+const charGrid = document.getElementById('charGrid');
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('').forEach(char => {
+    charGrid.innerHTML += `<label><input type="checkbox" value="${char}" checked> ${char}</label>`;
+});
+
+function selectAll(bool) {
+    document.querySelectorAll('#charGrid input').forEach(el => el.checked = bool);
+}
+
+function startQuiz() {
+    const selectedChars = Array.from(document.querySelectorAll('#charGrid input:checked')).map(el => el.value);
+    const mode = document.querySelector('input[name="quizMode"]:checked').value;
+
+    if (selectedChars.length === 0) return alert("請至少選擇一個字母！");
+
+    // 修正這裡：使用正確的變數名稱 data[cite: 1]
+    quizPool = data.filter(item => {
+        const firstLetter = (item.a || item.n).trim().charAt(0).toUpperCase();
+        return selectedChars.includes(firstLetter);
+    });
+
+    if (quizPool.length === 0) return alert("該範圍內沒有找到單字。");
+
+    if (mode === 'random') {
+        quizPool.sort(() => Math.random() - 0.5);
+    }
+
+    currentIndex = 0;
+    starredIndices.clear();
+    document.getElementById('setupPage').classList.add('hidden');
+    document.getElementById('quizPage').style.display = 'block';
+    renderQuestion();
+}
+
+function renderQuestion() {
+    const item = quizPool[currentIndex];
+    document.getElementById('displayWord').innerText = item.a || item.n;
+    document.getElementById('displaySub').innerText = item.a ? `(${item.n})` : "";
+    document.getElementById('displayAns').innerText = item.c;
+    document.getElementById('displayAns').classList.remove('show');
+    
+    const starIcon = document.getElementById('starIcon');
+    starIcon.classList.toggle('active', starredIndices.has(item));
+
+    document.getElementById('quizStatus').innerText = `題號：${currentIndex + 1} / ${quizPool.length}`;
+    speak(item.n);
+}
+
+function toggleAns() {
+    document.getElementById('displayAns').classList.toggle('show');
+}
+
+function toggleStar(e) {
+    e.stopPropagation();
+    const item = quizPool[currentIndex];
+    if (starredIndices.has(item)) {
+        starredIndices.delete(item);
+    } else {
+        starredIndices.add(item);
+    }
+    document.getElementById('starIcon').classList.toggle('active');
+}
+
+function nextQuestion() {
+    currentIndex++;
+    if (currentIndex >= quizPool.length) {
+        alert("測驗結束！即將顯示重點名單。");
+        showResults();
+    } else {
+        renderQuestion();
+    }
+}
+
+function showResults() {
+    document.getElementById('quizPage').style.display = 'none';
+    document.getElementById('resultPage').classList.remove('hidden');
+    
+    const listDiv = document.getElementById('starList');
+    listDiv.innerHTML = "";
+    
+    if (starredIndices.size === 0) {
+        listDiv.innerHTML = "<p style='color:#868e96'>這次沒有標記任何星星喔！</p>";
+    } else {
+        starredIndices.forEach(item => {
+            listDiv.innerHTML += `
+                <div class="star-item">
+                    <div>
+                        <strong>${item.a || item.n}</strong><br>
+                        <small>${item.a ? item.n : ''}</small>
+                    </div>
+                    <div style="color:var(--primary)">${item.c}</div>
+                </div>
+            `;
+        });
+    }
+    document.getElementById('starCountDisplay').innerText = `你共標記了 ${starredIndices.size} 個重點單字：`;
+}
+
+function speak(txt) {
+    if (!txt) return;
+    window.speechSynthesis.cancel();
+    const msg = new SpeechSynthesisUtterance(txt);
+    msg.lang = 'en-US';
+    window.speechSynthesis.speak(msg);
+}
+
+function speakCurrent(e) {
+    e.stopPropagation();
+    speak(quizPool[currentIndex].n);
+}
+</script>
+</body>
+</html>
