@@ -3,44 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>醫學單字測驗</title>
+    <title>醫學術語測驗系統</title>
     <style>
         :root { --primary: #228be6; --star: #fab005; --bg: #f8f9fa; }
-        body { font-family: sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; color: #333; }
+        body { font-family: sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 10px; color: #333; }
         
-        #setupPage, #resultPage { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
-        .grid-chars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 20px 0; text-align: left; }
-        .mode-select { margin: 20px 0; padding: 15px; background: #f1f3f5; border-radius: 10px; }
+        /* 全域語速控制條 - 置頂固定 */
+        .global-speed-bar {
+            background: white; width: 100%; max-width: 400px; padding: 12px 20px;
+            border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 15px; display: flex; align-items: center; gap: 15px;
+            position: sticky; top: 10px; z-index: 100;
+        }
+        .global-speed-bar label { font-size: 14px; font-weight: bold; white-space: nowrap; }
+        .global-speed-bar input { flex-grow: 1; cursor: pointer; }
+
+        /* 頁面容器 */
+        #setupPage, #resultPage { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        .grid-chars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 15px 0; text-align: left; }
+        .quick-range { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; justify-content: center; }
+        .btn-mini { padding: 6px 12px; font-size: 13px; background: #e9ecef; border: 1px solid #dee2e6; border-radius: 5px; cursor: pointer; font-weight: bold; }
         
+        .mode-select { margin: 10px 0; padding: 15px; background: #f1f3f5; border-radius: 10px; }
+        
+        /* 測驗卡片 */
         #quizPage { display: none; width: 100%; max-width: 400px; text-align: center; }
-        .card { background: white; min-height: 250px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; cursor: pointer; position: relative; margin-bottom: 20px; }
+        .card { background: white; min-height: 260px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; cursor: pointer; position: relative; margin-bottom: 20px; }
         .word-main { font-size: 2rem; font-weight: bold; margin-bottom: 10px; }
-        .word-sub { font-size: 1.1rem; color: #868e96; margin-bottom: 20px; min-height: 1.2em; }
+        .word-sub { font-size: 1.1rem; color: #868e96; margin-bottom: 20px; min-height: 1.2em; word-break: break-all; }
         .ans-area { font-size: 1.6rem; color: #e8590c; font-weight: bold; visibility: hidden; background: #fff4e6; padding: 5px 15px; border-radius: 8px; }
         .ans-area.show { visibility: visible; }
         
-        .star-btn { position: absolute; top: 20px; left: 20px; font-size: 28px; color: #dee2e6; background: none; border: none; cursor: pointer; transition: 0.2s; }
+        /* 按鈕配置優化 */
+        .star-btn { position: absolute; top: 20px; right: 20px; font-size: 32px; color: #dee2e6; background: none; border: none; cursor: pointer; transition: 0.2s; line-height: 1; }
         .star-btn.active { color: var(--star); }
-        .btn-speak { position: absolute; top: 20px; right: 20px; background: #f8f9fa; border: 1px solid #eee; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; }
+        .btn-speak-large { position: absolute; bottom: 20px; right: 20px; background: #e7f5ff; border: 2px solid var(--primary); border-radius: 50%; width: 60px; height: 60px; cursor: pointer; font-size: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(34,139,230,0.2); }
 
-        .btn { border: none; padding: 12px 30px; border-radius: 10px; font-size: 1rem; cursor: pointer; font-weight: bold; transition: 0.2s; width: 100%; margin-bottom: 10px; }
-        .btn-start { background: var(--primary); color: white; margin-top: 10px; }
+        .btn { border: none; padding: 14px; border-radius: 12px; font-size: 1rem; cursor: pointer; font-weight: bold; transition: 0.2s; width: 100%; margin-bottom: 10px; }
+        .btn-start { background: var(--primary); color: white; }
         .btn-next { background: var(--primary); color: white; }
         .btn-end { background: #ff6b6b; color: white; margin-top: 20px; }
         .btn-outline { background: #e9ecef; color: #495057; }
 
-        .star-list { text-align: left; margin-top: 20px; max-height: 300px; overflow-y: auto; padding-right: 10px; }
-        .star-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        .star-list { text-align: left; margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .star-item { border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
+    <!-- 全域語速控制條 -->
+    <div class="global-speed-bar">
+        <label>🗣️ 語速：<span id="rateVal">1.0</span>x</label>
+        <input type="range" id="speechRate" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('rateVal').innerText = this.value">
+    </div>
+
+    <!-- 1. 設定頁面 -->
     <div id="setupPage">
         <h2 style="margin-top:0">🚑 測驗設定</h2>
-        <div style="text-align:left; font-weight:bold;">選擇字首範圍：</div>
+        
+        <div style="text-align:left; font-weight:bold; margin-bottom:10px;">快速選取本次範圍：</div>
+        <div class="quick-range">
+	    <button class="btn-mini" onclick="selectRange('A','C')">A - C</button>
+            <button class="btn-mini" onclick="selectRange('D','H')">D - H</button>
+            <button class="btn-mini" onclick="selectRange('I','N')">I - N</button>
+            <button class="btn-mini" onclick="selectRange('O','R')">O - R</button>
+            <button class="btn-mini" onclick="selectRange('S','Y')">S - Y</button>
+        </div>
+
         <div class="grid-chars" id="charGrid"></div>
-        <div style="text-align:right; margin-bottom:10px;">
+        <div style="text-align:right; margin-bottom:15px;">
             <small onclick="selectAll(true)" style="cursor:pointer; color:var(--primary)">全選</small> / 
             <small onclick="selectAll(false)" style="cursor:pointer; color:var(--primary)">清空</small>
         </div>
@@ -54,13 +86,18 @@
         <button class="btn btn-start" onclick="startQuiz()">開始測驗</button>
     </div>
 
+    <!-- 2. 測驗頁面 -->
     <div id="quizPage">
         <div class="card" onclick="toggleAns()">
+            <!-- 星星移至右上角[cite: 2] -->
             <button id="starIcon" class="star-btn" onclick="toggleStar(event)">★</button>
-            <button class="btn-speak" onclick="speakCurrent(event)">🔊</button>
+            
             <div class="word-main" id="displayWord">-</div>
             <div class="word-sub" id="displaySub">-</div>
             <div class="ans-area" id="displayAns">-</div>
+            
+            <!-- 語音按鈕位於右下角，方便操作[cite: 2] -->
+            <button class="btn-speak-large" onclick="speakCurrent(event)">🔊</button>
         </div>
         <button class="btn btn-next" onclick="nextQuestion()">下一題</button>
         <button class="btn btn-outline" onclick="toggleAns()">顯示答案</button>
@@ -68,6 +105,7 @@
         <div id="quizStatus" style="margin-top:15px; color:#adb5bd; font-size:14px;"></div>
     </div>
 
+    <!-- 3. 結果頁面[cite: 2] -->
     <div id="resultPage" class="hidden">
         <h2 style="margin-top:0">🌟 重點複習清單</h2>
         <p id="starCountDisplay"></p>
@@ -76,7 +114,7 @@
     </div>
 
 <script>
-// 這裡將變數統稱為 data[cite: 1]
+// 資料庫修正為 data[cite: 2]
 const data = [
     { a: "a/W", n: "abrasion wound", c: "擦傷" },
     { a: "", n: "acidosis", c: "酸中毒" },
@@ -243,13 +281,25 @@ let quizPool = [];
 let currentIndex = 0;
 let starredIndices = new Set();
 
+// 初始化字母選單[cite: 2]
 const charGrid = document.getElementById('charGrid');
-"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('').forEach(char => {
-    charGrid.innerHTML += `<label><input type="checkbox" value="${char}" checked> ${char}</label>`;
+"ABCDEFGHIKLMNOPRSTUVWXY".split('').forEach(char => {
+    charGrid.innerHTML += `<label><input type="checkbox" value="${char}" id="chk_${char}" checked> ${char}</label>`;
 });
 
 function selectAll(bool) {
     document.querySelectorAll('#charGrid input').forEach(el => el.checked = bool);
+}
+
+function selectRange(start, end) {
+    selectAll(false);
+    const startCode = start.charCodeAt(0);
+    const endCode = end.charCodeAt(0);
+    for (let i = startCode; i <= endCode; i++) {
+        const char = String.fromCharCode(i);
+        const chk = document.getElementById(`chk_${char}`);
+        if (chk) chk.checked = true;
+    }
 }
 
 function startQuiz() {
@@ -258,9 +308,9 @@ function startQuiz() {
 
     if (selectedChars.length === 0) return alert("請至少選擇一個字母！");
 
-    // 修正這裡：使用正確的變數名稱 data[cite: 1]
+    // 修改錯誤：rawData 改為 data[cite: 2]
     quizPool = data.filter(item => {
-        const firstLetter = (item.a || item.n).trim().charAt(0).toUpperCase();
+        const firstLetter = (item.a || item.n).charAt(0).toUpperCase();
         return selectedChars.includes(firstLetter);
     });
 
@@ -296,7 +346,7 @@ function toggleAns() {
 }
 
 function toggleStar(e) {
-    e.stopPropagation();
+    e.stopPropagation(); // 防止觸發翻牌[cite: 2]
     const item = quizPool[currentIndex];
     if (starredIndices.has(item)) {
         starredIndices.delete(item);
@@ -324,7 +374,7 @@ function showResults() {
     listDiv.innerHTML = "";
     
     if (starredIndices.size === 0) {
-        listDiv.innerHTML = "<p style='color:#868e96'>這次沒有標記任何星星喔！</p>";
+        listDiv.innerHTML = "<p style='color:#868e96; text-align:center;'>這次沒有標記任何星星喔！</p>";
     } else {
         starredIndices.forEach(item => {
             listDiv.innerHTML += `
@@ -333,7 +383,7 @@ function showResults() {
                         <strong>${item.a || item.n}</strong><br>
                         <small>${item.a ? item.n : ''}</small>
                     </div>
-                    <div style="color:var(--primary)">${item.c}</div>
+                    <div style="color:var(--primary); font-weight:bold;">${item.c}</div>
                 </div>
             `;
         });
@@ -342,15 +392,16 @@ function showResults() {
 }
 
 function speak(txt) {
-    if (!txt) return;
     window.speechSynthesis.cancel();
     const msg = new SpeechSynthesisUtterance(txt);
     msg.lang = 'en-US';
+    // 獲取目前語速條數值[cite: 2]
+    msg.rate = parseFloat(document.getElementById('speechRate').value);
     window.speechSynthesis.speak(msg);
 }
 
 function speakCurrent(e) {
-    e.stopPropagation();
+    e.stopPropagation(); // 防止翻牌[cite: 2]
     speak(quizPool[currentIndex].n);
 }
 </script>
