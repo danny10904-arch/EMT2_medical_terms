@@ -19,7 +19,7 @@
         .global-speed-bar input { flex-grow: 1; cursor: pointer; }
 
         /* 頁面容器 */
-        #setupPage, #resultPage { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        #setupPage, #resultPage { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center;min-height: auto; margin-bottom: 50px; /*在底部留一點空間，捲動到底部時比較舒服 */ }
         .grid-chars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 15px 0; text-align: left; }
         .quick-range { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; justify-content: center; }
         .btn-mini { padding: 6px 12px; font-size: 13px; background: #e9ecef; border: 1px solid #dee2e6; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -45,7 +45,7 @@
         .btn-end { background: #ff6b6b; color: white; margin-top: 20px; }
         .btn-outline { background: #e9ecef; color: #495057; }
 
-        .star-list { text-align: left; margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .star-list { text-align: left; margin-top: 20px; width: 100%; }
         .star-item { border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
         .hidden { display: none !important; }
     </style>
@@ -208,7 +208,7 @@ const data = [
     { a: "I.V Bag", n: "Intravenous Bag", c: "精密輸送套" },
     { a: "I.V LOCK", n: "Intravenous lock", c: "注射帽" },
     { a: "I.V Set", n: "Intravenous Set", c: "一般輸送套" },
-    { a: "I-gel", n: "", c: "喉頭外呼吸道" },
+    { a: "", n: "I-gel", c: "喉頭外呼吸道" },
     { a: "KED", n: "Kendrick Extrication Device", c: "軀幹固定器" },
     { a: "L/W", n: "Laceration wound", c: "撕裂傷" },
     { a: "LMA", n: "laryngeal mask airway", c: "拋棄式喉頭面罩" },
